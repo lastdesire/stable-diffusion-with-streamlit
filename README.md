@@ -10,7 +10,15 @@ To start working with the application, first install all the necessary dependenc
 ```
 pip install -r requirements.txt
 ```
-And then you can run it:
+Next, you need to accept the agreement located at this link: https://huggingface.co/runwayml/stable-diffusion-v1-5/tree/main (you must be registered). After that, you should get an access token (write) in your personal profile. Now run the command: 
+```
+huggingface-cli login
+```
+and insert your token.
+
+That's almost all!
+
+You are ready to run application:
 ```
 streamlit run src/main.py
 ```
