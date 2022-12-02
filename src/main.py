@@ -1,4 +1,5 @@
 from typing import Optional
+# import torch
 import streamlit as st
 from diffusers import (
     StableDiffusionPipeline,
@@ -8,10 +9,12 @@ from PIL import Image
 DEFAULT_PROMPT = "the fly sat on the jam, that's the whole poem"
 OUTPUT_IMG = "output"
 
-global GUIDANCE_SCALE
-global DEFAULT_WIDTH
-global DEFAULT_HEIGHT
-global NUM_INFERENCE_STEPS
+
+@st.cache(allow_output_mutation=True, max_entries=1)
+def get_pipeline():
+    return StableDiffusionPipeline.from_pretrained("runwayml/stable-diffusion-v1-5"
+                                                   # , revision="fp16", torch_dtype=torch.float16
+                                                   )
 
 
 def set_image(key: str, img: Image.Image):
@@ -24,18 +27,19 @@ def get_image(key: str) -> Optional[Image.Image]:
     return None
 
 
-def generate(prompt):
-    pipe = StableDiffusionPipeline.from_pretrained("runwayml/stable-diffusion-v1-5")
+def generate(prompt, default_height, default_width, num_inference_steps, guidance_scale, number_of_pictures):
+    pipe = get_pipeline()
     # disable the following line if you run on CPU
     # pipe = pipe.to("cuda")
-    image = pipe(prompt=prompt, guidance_scale=GUIDANCE_SCALE,
-                 num_inference_steps=NUM_INFERENCE_STEPS).images[0]
-    image = image.resize((DEFAULT_WIDTH, DEFAULT_HEIGHT))
+    image = pipe(prompt=[prompt] * number_of_pictures, height=default_height, width=default_width,
+                 guidance_scale=guidance_scale,
+                 num_inference_steps=num_inference_steps).images
     set_image(OUTPUT_IMG, image.copy())
     return image
 
 
-def prompt_and_generate_button(prefix):
+def prompt_and_generate_button(prefix, default_height, default_width, num_inference_steps, guidance_scale,
+                               number_of_pictures):
     prompt = st.text_area(
         "Prompt",
         value=DEFAULT_PROMPT,
@@ -43,28 +47,29 @@ def prompt_and_generate_button(prefix):
     )
     if st.button("Generate image", key=f"{prefix}-btn"):
         with st.spinner("Generating your image, please wait..."):
-            image = generate(prompt)
+            image = generate(prompt, default_height, default_width, num_inference_steps, guidance_scale,
+                             number_of_pictures)
         st.image(image)
 
 
-def txt2img_tab():
-    prompt_and_generate_button("txt2img")
+def txt2img_tab(default_height, default_width, num_inference_steps, guidance_scale, number_of_pictures):
+    prompt_and_generate_button("txt2img", default_height, default_width, num_inference_steps, guidance_scale,
+                               number_of_pictures)
 
 
 def settings_tab():
-    global GUIDANCE_SCALE
-    global DEFAULT_WIDTH
-    global DEFAULT_HEIGHT
-    global NUM_INFERENCE_STEPS
-    DEFAULT_HEIGHT = st.slider("Final height", value=512, min_value=16, max_value=1024,
+    default_height = st.slider("Final height", value=512, min_value=16, max_value=1024,
                                help="After getting an image there will be resizing for specified height.")
-    DEFAULT_WIDTH = st.slider("Final width", value=512, min_value=16, max_value=1024,
+    default_width = st.slider("Final width", value=512, min_value=16, max_value=1024,
                               help="After getting an image there will be resizing for specified width.")
-    NUM_INFERENCE_STEPS = st.slider("Num inference steps", value=50, min_value=1, max_value=100,
+    num_inference_steps = st.slider("Num inference steps", value=50, min_value=1, max_value=100,
                                     help="More steps usually lead to a higher quality of image and slower inference.")
-    GUIDANCE_SCALE = st.slider("Guidance scale", value=7, min_value=0, max_value=30,
+    guidance_scale = st.slider("Guidance scale", value=7, min_value=0, max_value=30,
                                help="A higher hint scale encourages images that are closely related to the text hint, "
                                     "usually at the expense of lower image quality.")
+    number_of_pictures = st.slider("Num of pictures", value=1, min_value=1, max_value=10,
+                                   help="Number of images to be generated")
+    return default_height, default_width, num_inference_steps, guidance_scale, number_of_pictures
 
 
 def main():
@@ -74,10 +79,10 @@ def main():
         ["Text to Image", "Settings"]
     )
     with settings:
-        settings_tab()
+        default_height, default_width, num_inference_steps, guidance_scale, number_of_pictures = settings_tab()
 
     with tab:
-        txt2img_tab()
+        txt2img_tab(default_height, default_width, num_inference_steps, guidance_scale, number_of_pictures)
 
     with st.sidebar:
         st.header("Latest image:")
@@ -91,7 +96,4 @@ def main():
 
 
 if __name__ == "__main__":
-    DEFAULT_WIDTH, DEFAULT_HEIGHT = 512, 512
-    NUM_INFERENCE_STEPS = 50
-    GUIDANCE_SCALE = 7
     main()
