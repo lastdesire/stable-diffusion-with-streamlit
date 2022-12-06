@@ -1,6 +1,6 @@
 from typing import Optional
-# import torch
 import streamlit as st
+import torch
 from diffusers import (
     StableDiffusionPipeline,
 )
@@ -12,9 +12,8 @@ OUTPUT_IMG = "output"
 
 @st.cache(allow_output_mutation=True, max_entries=1)
 def get_pipeline():
-    return StableDiffusionPipeline.from_pretrained("runwayml/stable-diffusion-v1-5"
-                                                   # , revision="fp16", torch_dtype=torch.float16
-                                                   )
+    device = "cuda" if torch.cuda.is_available() else "cpu"
+    return StableDiffusionPipeline.from_pretrained("runwayml/stable-diffusion-v1-5").to(device)
 
 
 def set_image(key: str, img: Image.Image):
@@ -29,8 +28,6 @@ def get_image(key: str) -> Optional[Image.Image]:
 
 def generate(prompt, default_height, default_width, num_inference_steps, guidance_scale, number_of_pictures):
     pipe = get_pipeline()
-    # disable the following line if you run on CPU
-    # pipe = pipe.to("cuda")
     image = pipe(prompt=[prompt] * number_of_pictures, height=default_height, width=default_width,
                  guidance_scale=guidance_scale,
                  num_inference_steps=num_inference_steps).images
